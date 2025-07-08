@@ -1,0 +1,187 @@
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables. Please check your .env file.');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Database types
+export interface UserProfile {
+  id: string;
+  full_name: string | null;
+  contact_number: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvestmentPlanDB {
+  id: string;
+  user_id: string;
+  plan_type: string;
+  initial_amount: number;
+  daily_increment: number;
+  current_balance: number;
+  total_gained: number;
+  start_date: string;
+  last_increment_date: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserSettingsDB {
+  id: string;
+  user_id: string;
+  theme: string;
+  language: string;
+  currency: string;
+  notifications_enabled: boolean;
+  email_notifications: boolean;
+  sms_notifications: boolean;
+  two_factor_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Auth helper functions
+export const authHelpers = {
+  signUp: async (email: string, password: string, fullName: string, contactNumber: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          contact_number: contactNumber,
+        },
+      },
+    });
+    return { data, error };
+  },
+
+  signIn: async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    return { data, error };
+  },
+
+  signOut: async () => {
+    const { error } = await supabase.auth.signOut();
+    return { error };
+  },
+
+  getCurrentUser: () => {
+    return supabase.auth.getUser();
+  },
+
+  getProfile: async (userId: string): Promise<{ data: UserProfile | null; error: any }> => {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    return { data, error };
+  },
+
+  updateProfile: async (userId: string, updates: Partial<UserProfile>) => {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single();
+    return { data, error };
+  },
+};
+
+// Investment plan helpers
+export const investmentHelpers = {
+  createPlan: async (userId: string, planType: string, initialAmount: number) => {
+    const dailyIncrements = {
+      '2000': 60,
+      '5000': 160,
+      '10000': 330,
+      '20000': 660,
+    };
+
+    const { data, error } = await supabase
+      .from('investment_plans')
+      .insert({
+        user_id: userId,
+        plan_type: planType,
+        initial_amount: initialAmount,
+        daily_increment: dailyIncrements[planType as keyof typeof dailyIncrements],
+        current_balance: initialAmount,
+      })
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  getUserPlans: async (userId: string) => {
+    const { data, error } = await supabase
+      .from('investment_plans')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    return { data, error };
+  },
+
+  updatePlan: async (planId: string, updates: Partial<InvestmentPlanDB>) => {
+    const { data, error } = await supabase
+      .from('investment_plans')
+      .update(updates)
+      .eq('id', planId)
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  getDailyGains: async (userId: string, limit = 30) => {
+    const { data, error } = await supabase
+      .from('daily_gains')
+      .select(`
+        *,
+        investment_plans(plan_type, initial_amount)
+      `)
+      .eq('user_id', userId)
+      .order('gain_date', { ascending: false })
+      .limit(limit);
+
+    return { data, error };
+  },
+};
+
+// Settings helpers
+export const settingsHelpers = {
+  getUserSettings: async (userId: string) => {
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    return { data, error };
+  },
+
+  updateSettings: async (userId: string, updates: Partial<UserSettingsDB>) => {
+    const { data, error } = await supabase
+      .from('user_settings')
+      .update(updates)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    return { data, error };
+  },
+};

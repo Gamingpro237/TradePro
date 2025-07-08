@@ -65,9 +65,16 @@ export const authHelpers = {
     return { data, error };
   },
 
-  signIn: async (email: string, password: string) => {
+  signIn: async (emailOrPhone: string, password: string) => {
+    let loginEmail = emailOrPhone;
+    
+    // If the input doesn't look like an email, treat it as a phone number
+    if (!/\S+@\S+\.\S+/.test(emailOrPhone)) {
+      loginEmail = `${emailOrPhone}@temp.local`;
+    }
+    
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: loginEmail,
       password,
     });
     return { data, error };

@@ -25,9 +25,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
   const validateForm = (): boolean => {
     const newErrors: Partial<RegisterData> = {};
 
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+    if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Email is invalid';
     }
 
@@ -72,8 +70,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
     setErrors({});
 
     try {
+      // Use contact number as email if no email provided
+      const emailToUse = formData.email || `${formData.contactNumber}@temp.local`;
+      
       const { data, error } = await authHelpers.signUp(
-        formData.email,
+        emailToUse,
         formData.password,
         formData.fullName,
         formData.contactNumber
@@ -81,9 +82,9 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
 
       if (error) {
         if (error.message.includes('already registered')) {
-          setErrors({ email: 'This email is already registered' });
+          setErrors({ contactNumber: 'This contact number is already registered' });
         } else {
-          setErrors({ email: error.message });
+          setErrors({ contactNumber: error.message });
         }
         return;
       }
@@ -91,12 +92,12 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
       // Registration successful - redirect to login
       if (data.user) {
         // Show success message and redirect to login
-        alert('Registration successful! Please sign in with your credentials.');
+        alert('Registration successful! Please sign in with your contact number and password.');
         onSwitchToLogin();
       }
     } catch (error) {
       console.error('Registration error:', error);
-      setErrors({ email: 'An unexpected error occurred. Please try again.' });
+      setErrors({ contactNumber: 'An unexpected error occurred. Please try again.' });
     } finally {
       setIsLoading(false);
     }
@@ -154,7 +155,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
             {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                Email Address
+                Email Address (Optional)
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
@@ -162,18 +163,20 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
                   id="email"
                   name="email"
                   type="email"
-                  required
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   className={`w-full pl-10 pr-4 py-3 bg-gray-800 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                     errors.email ? 'border-red-500' : 'border-gray-700'
                   }`}
-                  placeholder="Enter your email"
+                  placeholder="Enter your email (optional)"
                 />
               </div>
               {errors.email && (
                 <p className="mt-1 text-sm text-red-400">{errors.email}</p>
               )}
+              <p className="mt-1 text-xs text-gray-400">
+                Email is optional. You can sign in using your contact number.
+              </p>
             </div>
 
             {/* Contact Number */}

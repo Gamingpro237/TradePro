@@ -24,12 +24,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onLoginSucces
       
       if (authError) {
         // Provide more user-friendly error messages
-        if (authError.message.includes('Invalid login credentials')) {
+        if (authError.message && authError.message.includes('Invalid login credentials')) {
           setError('Invalid contact number or password. Please check your credentials and try again.');
-        } else if (authError.message.includes('Too many requests')) {
+        } else if (authError.message && authError.message.includes('Too many requests')) {
           setError('Too many login attempts. Please wait a moment before trying again.');
         } else {
-          setError(authError.message);
+          setError(authError.message || 'Login failed. Please try again.');
         }
         return;
       }

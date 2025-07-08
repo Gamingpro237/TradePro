@@ -51,29 +51,119 @@ export interface UserSettingsDB {
 // Auth helper functions
 export const authHelpers = {
   signUp: async (email: string, password: string, fullName: string, contactNumber: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: undefined, // Disable email confirmation
-        data: {
-          full_name: fullName,
-          contact_number: contactNumber,
+    // Create a unique email using contact number if no email provided
+    const authEmail = email || `${contactNumber.replace(/[^0-9]/g, '')}@contact.local`;
+    
+    try {
+      // First, sign up the user with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: authEmail,
+        password,
+        options: {
+          emailRedirectTo: undefined, // Disable email confirmation
+          data: {
+            full_name: fullName,
+            contact_number: contactNumber,
+          },
         },
-      },
-    });
-    return { data, error };
+      });
+
+      if (authError) {
+        console.error('Auth signup error:', authError);
+        return { data: null, error: authError };
+      }
+
+      // If user was created successfully, ensure profile is created
+      if (authData.user) {
+        // Wait a moment for the trigger to fire
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Check if profile was created, if not create it manually
+        const { data: existingProfile } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', authData.user.id)
+          .single();
+
+        if (!existingProfile) {
+          // Create profile manually if trigger didn't work
+          const { error: profileError } = await supabase
+            .from('user_profiles')
+            .insert({
+              id: authData.user.id,
+              full_name: fullName,
+              contact_number: contactNumber,
+            });
+
+          if (profileError) {
+            console.error('Profile creation error:', profileError);
+          }
+        }
+
+        // Create default settings
+        const { error: settingsError } = await supabase
+          .from('user_settings')
+          .insert({
+            user_id: authData.user.id,
+          });
+
+        if (settingsError) {
+          console.error('Settings creation error:', settingsError);
+        }
+      }
+
+      return { data: authData, error: null };
+    } catch (error) {
+      console.error('Signup process error:', error);
+      return { data: null, error };
+    }
   },
 
   signIn: async (contactNumber: string, password: string) => {
-    // Always treat input as contact number and convert to temp email format
-    const loginEmail = `${contactNumber}@temp.local`;
-    
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
-      password,
-    });
-    return { data, error };
+    try {
+      // First, try to find the user by contact number in user_profiles
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('contact_number', contactNumber)
+        .single();
+
+      if (profileError || !profile) {
+        return { 
+          data: null, 
+          error: { message: 'Invalid contact number or password. Please check your credentials.' }
+        };
+      }
+
+      // Get the user's email from auth.users
+      const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(profile.id);
+      
+      if (userError || !user) {
+        // Fallback: try with contact number as email format
+        const loginEmail = `${contactNumber.replace(/[^0-9]/g, '')}@contact.local`;
+        
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: loginEmail,
+          password,
+        });
+        
+        return { data, error };
+      }
+
+      // Sign in with the actual email
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: user.email!,
+        password,
+      });
+
+      return { data, error };
+    } catch (error) {
+      console.error('Sign in error:', error);
+      return { 
+        data: null, 
+        error: { message: 'An error occurred during sign in. Please try again.' }
+      };
+    }
   },
 
   signOut: async () => {
@@ -102,6 +192,27 @@ export const authHelpers = {
       .select()
       .single();
     return { data, error };
+  },
+
+  // Debug function to check user data
+  debugUserData: async (contactNumber: string) => {
+    console.log('=== DEBUG USER DATA ===');
+    
+    // Check user_profiles table
+    const { data: profiles, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('contact_number', contactNumber);
+    
+    console.log('Profiles found:', profiles);
+    console.log('Profile error:', profileError);
+    
+    // Check auth.users table (this requires service role, so it might not work)
+    const { data: { users }, error: usersError } = await supabase.auth.admin.listUsers();
+    console.log('Auth users:', users);
+    console.log('Users error:', usersError);
+    
+    return { profiles, profileError, users, usersError };
   },
 };
 

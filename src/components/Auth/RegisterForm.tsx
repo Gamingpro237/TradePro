@@ -70,21 +70,20 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
     setErrors({});
 
     try {
-      // Use contact number as email if no email provided
-      const emailToUse = formData.email || `${formData.contactNumber}@temp.local`;
-      
       const { data, error } = await authHelpers.signUp(
-        emailToUse,
+        formData.email, // Can be empty string
         formData.password,
         formData.fullName,
         formData.contactNumber
       );
 
       if (error) {
-        if (error.message.includes('already registered')) {
+        if (error.message && error.message.includes('already registered')) {
+          setErrors({ contactNumber: 'This contact number is already registered. Please try signing in.' });
+        } else if (error.message && error.message.includes('User already registered')) {
           setErrors({ contactNumber: 'This contact number is already registered. Please try signing in.' });
         } else {
-          setErrors({ contactNumber: error.message });
+          setErrors({ contactNumber: error.message || 'Registration failed. Please try again.' });
         }
         return;
       }
@@ -93,7 +92,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
       if (data.user) {
         // Show success message and redirect to login
         alert('Registration successful! You can now sign in with your contact number and password.');
-        onSwitchToLogin();
+        onRegisterSuccess();
       }
     } catch (error) {
       console.error('Registration error:', error);

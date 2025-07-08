@@ -8,7 +8,7 @@ interface LoginFormProps {
 }
 
 const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onLoginSuccess }) => {
-  const [email, setEmail] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -20,7 +20,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onLoginSucces
     setError('');
     
     try {
-      const { data, error: authError } = await authHelpers.signIn(email, password);
+      const { data, error: authError } = await authHelpers.signIn(contactNumber, password);
       
       if (authError) {
         // Provide more user-friendly error messages
@@ -79,8 +79,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onLoginSucces
                   name="contactNumber"
                   type="tel"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={contactNumber}
+                  onChange={(e) => setContactNumber(e.target.value)}
                   className={`w-full pl-10 pr-4 py-3 bg-gray-800 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                     error ? 'border-red-500' : 'border-gray-700'
                   }`}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { Eye, EyeOff, Lock, Phone } from 'lucide-react';
 import { authHelpers } from '../../lib/supabase';
 
 interface LoginFormProps {
@@ -25,7 +25,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onLoginSucces
       if (authError) {
         // Provide more user-friendly error messages
         if (authError.message.includes('Invalid login credentials')) {
-          setError('Invalid email or password. Please check your credentials and try again.');
+          setError('Invalid contact number or password. Please check your credentials and try again.');
         } else if (authError.message.includes('Too many requests')) {
           setError('Too many login attempts. Please wait a moment before trying again.');
         } else {
@@ -70,21 +70,21 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onLoginSucces
           <div className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                Email or Contact Number
+                Contact Number
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <Phone className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                 <input
-                  id="email"
-                  name="email"
-                  type="text"
+                  id="contactNumber"
+                  name="contactNumber"
+                  type="tel"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className={`w-full pl-10 pr-4 py-3 bg-gray-800 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                     error ? 'border-red-500' : 'border-gray-700'
                   }`}
-                  placeholder="Enter your email or contact number"
+                  placeholder="Enter your contact number"
                 />
               </div>
             </div>
@@ -157,9 +157,9 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onLoginSucces
                 Create one here
               </button>
             </p>
-            {error && error.includes('Invalid email or password') && (
+            {error && error.includes('Invalid contact number or password') && (
               <p className="text-xs text-gray-500 mt-2">
-                New user? Click "Create one here" to register first.
+                New user? Click "Create one here" to register with your contact number first.
               </p>
             )}
           </div>

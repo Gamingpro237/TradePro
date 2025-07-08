@@ -82,7 +82,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
 
       if (error) {
         if (error.message.includes('already registered')) {
-          setErrors({ contactNumber: 'This contact number is already registered' });
+          setErrors({ contactNumber: 'This contact number is already registered. Please try signing in.' });
         } else {
           setErrors({ contactNumber: error.message });
         }
@@ -92,7 +92,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
       // Registration successful - redirect to login
       if (data.user) {
         // Show success message and redirect to login
-        alert('Registration successful! Please sign in with your contact number and password.');
+        alert('Registration successful! You can now sign in with your contact number and password.');
         onSwitchToLogin();
       }
     } catch (error) {
@@ -175,7 +175,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
                 <p className="mt-1 text-sm text-red-400">{errors.email}</p>
               )}
               <p className="mt-1 text-xs text-gray-400">
-                Email is optional. You can sign in using your contact number.
+                Email is optional. You will sign in using only your contact number and password.
               </p>
             </div>
 

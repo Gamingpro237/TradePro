@@ -55,6 +55,7 @@ export const authHelpers = {
       email,
       password,
       options: {
+        emailRedirectTo: undefined, // Disable email confirmation
         data: {
           full_name: fullName,
           contact_number: contactNumber,

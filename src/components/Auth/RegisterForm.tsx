@@ -88,8 +88,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
         return;
       }
 
+      // Registration successful - redirect to login
       if (data.user) {
-        onRegisterSuccess();
+        // Show success message and redirect to login
+        alert('Registration successful! Please sign in with your credentials.');
+        onSwitchToLogin();
       }
     } catch (error) {
       console.error('Registration error:', error);

@@ -31,7 +31,7 @@ const AuthContainer: React.FC<AuthContainerProps> = ({ onAuthSuccess }) => {
       ) : (
         <RegisterForm 
           onSwitchToLogin={handleSwitchToLogin}
-          onRegisterSuccess={handleSuccess}
+          onRegisterSuccess={handleSwitchToLogin}
         />
       )}
     </>

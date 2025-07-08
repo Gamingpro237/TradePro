@@ -26,8 +26,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onLoginSucces
         // Provide more user-friendly error messages
         if (authError.message.includes('Invalid login credentials')) {
           setError('Invalid email or password. Please check your credentials and try again.');
-        } else if (authError.message.includes('Email not confirmed')) {
-          setError('Please check your email and click the confirmation link before signing in.');
         } else if (authError.message.includes('Too many requests')) {
           setError('Too many login attempts. Please wait a moment before trying again.');
         } else {

@@ -15,6 +15,7 @@ export interface UserProfile {
   full_name: string | null;
   contact_number: string | null;
   avatar_url: string | null;
+  email: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -51,8 +52,8 @@ export interface UserSettingsDB {
 // Auth helper functions
 export const authHelpers = {
   signUp: async (email: string, password: string, fullName: string, contactNumber: string) => {
-    // Create a unique email using contact number if no email provided
-    const authEmail = email || `${contactNumber.replace(/[^0-9]/g, '')}@contact.local`;
+    // Always use contact number for Supabase auth to ensure consistency
+    const authEmail = `${contactNumber.replace(/[^0-9]/g, '')}@contact.local`;
     
     try {
       // First, sign up the user with Supabase Auth
@@ -64,6 +65,7 @@ export const authHelpers = {
           data: {
             full_name: fullName,
             contact_number: contactNumber,
+            user_email: email, // Store actual email in metadata
           },
         },
       });
@@ -78,42 +80,30 @@ export const authHelpers = {
         // Wait a moment for the trigger to fire
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Check if profile was created, if not create it manually
-        const { data: existingProfile } = await supabase
+        // Create or update profile with actual email
+        const { error: profileError } = await supabase
           .from('user_profiles')
-          .select('*')
-          .eq('id', authData.user.id)
-          .single();
+          .upsert({
+            id: authData.user.id,
+            full_name: fullName,
+            contact_number: contactNumber,
+            email: email, // Store the actual email provided by user
+          });
 
-        if (!existingProfile) {
-          // Create profile manually if trigger didn't work
-          const { error: profileError } = await supabase
-            .from('user_profiles')
-            .insert({
-              id: authData.user.id,
-              full_name: fullName,
-              contact_number: contactNumber,
-            });
-
-          if (profileError) {
-            console.error('Profile creation error:', profileError);
-          }
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          return { data: null, error: profileError };
         }
-
         // Create default settings
-        // Try to create default settings, but don't fail if RLS prevents it
-        try {
-          const { error: settingsError } = await supabase
-            .from('user_settings')
-            .insert({
-              user_id: authData.user.id,
-            });
+        const { error: settingsError } = await supabase
+          .from('user_settings')
+          .upsert({
+            user_id: authData.user.id,
+          });
 
-          if (settingsError) {
-            console.warn('Settings creation warning (this may be expected due to RLS):', settingsError);
-          }
-        } catch (settingsError) {
-          console.warn('Settings creation failed (this may be expected due to RLS):', settingsError);
+        if (settingsError) {
+          console.error('Settings creation error:', settingsError);
+          return { data: null, error: settingsError };
         }
       }
 

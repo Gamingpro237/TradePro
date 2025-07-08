@@ -48,9 +48,12 @@ export const useAuth = () => {
       }
 
       if (profile) {
+        // Use the actual email from profile, fallback to auth email
+        const userEmail = profile.email || email;
+        
         const authUserData: AuthUser = {
           id: profile.id,
-          email: email,
+          email: userEmail,
           full_name: profile.full_name || '',
           contact_number: profile.contact_number || '',
           avatar_url: profile.avatar_url || undefined,
@@ -61,7 +64,7 @@ export const useAuth = () => {
         const userData: User = {
           id: profile.id,
           name: profile.full_name || 'User',
-          email: email,
+          email: userEmail,
           full_name: profile.full_name || undefined,
           contact_number: profile.contact_number || undefined,
           avatar_url: profile.avatar_url || undefined,

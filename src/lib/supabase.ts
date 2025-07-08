@@ -101,14 +101,19 @@ export const authHelpers = {
         }
 
         // Create default settings
-        const { error: settingsError } = await supabase
-          .from('user_settings')
-          .insert({
-            user_id: authData.user.id,
-          });
+        // Try to create default settings, but don't fail if RLS prevents it
+        try {
+          const { error: settingsError } = await supabase
+            .from('user_settings')
+            .insert({
+              user_id: authData.user.id,
+            });
 
-        if (settingsError) {
-          console.error('Settings creation error:', settingsError);
+          if (settingsError) {
+            console.warn('Settings creation warning (this may be expected due to RLS):', settingsError);
+          }
+        } catch (settingsError) {
+          console.warn('Settings creation failed (this may be expected due to RLS):', settingsError);
         }
       }
 
@@ -121,40 +126,20 @@ export const authHelpers = {
 
   signIn: async (contactNumber: string, password: string) => {
     try {
-      // First, try to find the user by contact number in user_profiles
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('contact_number', contactNumber)
-        .single();
+      // Construct the login email using the same format as registration
+      const loginEmail = `${contactNumber.replace(/[^0-9]/g, '')}@contact.local`;
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password,
+      });
 
-      if (profileError || !profile) {
+      if (error) {
         return { 
           data: null, 
           error: { message: 'Invalid contact number or password. Please check your credentials.' }
         };
       }
-
-      // Get the user's email from auth.users
-      const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(profile.id);
-      
-      if (userError || !user) {
-        // Fallback: try with contact number as email format
-        const loginEmail = `${contactNumber.replace(/[^0-9]/g, '')}@contact.local`;
-        
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: loginEmail,
-          password,
-        });
-        
-        return { data, error };
-      }
-
-      // Sign in with the actual email
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: user.email!,
-        password,
-      });
 
       return { data, error };
     } catch (error) {

@@ -52,8 +52,8 @@ export interface UserSettingsDB {
 // Auth helper functions
 export const authHelpers = {
   signUp: async (email: string, password: string, fullName: string, contactNumber: string) => {
-    // Always use contact number for Supabase auth to ensure consistency
-    const authEmail = `${contactNumber.replace(/[^0-9]/g, '')}@trade-pro.com`;
+    // Use actual email for authentication, or generate a unique one if not provided
+    const authEmail = email || `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}@tradepro.local`;
     
     try {
       // First, sign up the user with Supabase Auth
@@ -65,7 +65,7 @@ export const authHelpers = {
           data: {
             full_name: fullName,
             contact_number: contactNumber,
-            user_email: email, // Store actual email in metadata
+            actual_email: email, // Store actual email in metadata if provided
           },
         },
       });
@@ -87,7 +87,7 @@ export const authHelpers = {
             id: authData.user.id,
             full_name: fullName,
             contact_number: contactNumber,
-            email: authEmail, // Store the synthetic email to match auth
+            email: email, // Store the actual email provided by user (can be null)
           });
 
         if (profileError) {
@@ -116,11 +116,32 @@ export const authHelpers = {
 
   signIn: async (contactNumber: string, password: string) => {
     try {
-      // Construct the login email using the same format as registration
-      const loginEmail = `${contactNumber.replace(/[^0-9]/g, '')}@trade-pro.com`;
+      // First, try to find the user by contact number
+      const { data: profiles, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('contact_number', contactNumber)
+        .limit(1);
+
+      if (profileError || !profiles || profiles.length === 0) {
+        return { 
+          data: null, 
+          error: { message: 'No account found with this contact number. Please check your contact number or register first.' }
+        };
+      }
+
+      // Get the auth user to find their email
+      const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(profiles[0].id);
+      
+      if (authError || !authUser.user) {
+        return { 
+          data: null, 
+          error: { message: 'Account authentication error. Please try again.' }
+        };
+      }
       
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: loginEmail,
+        email: authUser.user.email!,
         password,
       });
 

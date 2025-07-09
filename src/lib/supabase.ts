@@ -87,7 +87,7 @@ export const authHelpers = {
             id: authData.user.id,
             full_name: fullName,
             contact_number: contactNumber,
-            email: email, // Store the actual email provided by user
+            email: authEmail, // Store the synthetic email to match auth
           });
 
         if (profileError) {

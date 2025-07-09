@@ -40,6 +40,9 @@ export const useAuth = () => {
 
   const loadUserData = async (userId: string, email: string) => {
     try {
+      // Get the current user to access metadata
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
       const { data: profile, error } = await authHelpers.getProfile(userId);
       
       if (error) {
@@ -48,8 +51,8 @@ export const useAuth = () => {
       }
 
       if (profile) {
-        // Use the actual email from profile, fallback to auth email
-        const userEmail = profile.email || email;
+        // Use the actual email from user metadata, fallback to profile email
+        const userEmail = currentUser?.user_metadata?.user_email || profile.email || email;
         
         const authUserData: AuthUser = {
           id: profile.id,

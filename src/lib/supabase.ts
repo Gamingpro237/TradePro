@@ -77,23 +77,6 @@ export const authHelpers = {
 
       // If user was created successfully, ensure profile is created
       if (authData.user) {
-        // Wait a moment for the trigger to fire
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Create or update profile with actual email
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .upsert({
-            id: authData.user.id,
-            full_name: fullName,
-            contact_number: contactNumber,
-            email: email, // Store the actual email provided by user (can be null)
-          });
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          return { data: null, error: profileError };
-        }
         // Create default settings
         const { error: settingsError } = await supabase
           .from('user_settings')

@@ -53,7 +53,7 @@ export interface UserSettingsDB {
 export const authHelpers = {
   signUp: async (email: string, password: string, fullName: string, contactNumber: string) => {
     // Always use contact number for Supabase auth to ensure consistency
-    const authEmail = `${contactNumber.replace(/[^0-9]/g, '')}@contact.local`;
+    const authEmail = `${contactNumber.replace(/[^0-9]/g, '')}@trade-pro.com`;
     
     try {
       // First, sign up the user with Supabase Auth
@@ -117,7 +117,7 @@ export const authHelpers = {
   signIn: async (contactNumber: string, password: string) => {
     try {
       // Construct the login email using the same format as registration
-      const loginEmail = `${contactNumber.replace(/[^0-9]/g, '')}@contact.local`;
+      const loginEmail = `${contactNumber.replace(/[^0-9]/g, '')}@trade-pro.com`;
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: loginEmail,

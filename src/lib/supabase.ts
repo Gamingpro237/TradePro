@@ -16,6 +16,19 @@ export interface UserProfile {
   contact_number: string | null;
   avatar_url: string | null;
   email: string | null;
+  username: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserAccount {
+  id: string;
+  auth_user_id: string;
+  username: string;
+  contact_number: string;
+  email: string | null;
+  full_name: string;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -51,21 +64,60 @@ export interface UserSettingsDB {
 
 // Auth helper functions
 export const authHelpers = {
-  signUp: async (email: string, password: string, fullName: string, contactNumber: string) => {
-    // Use actual email for authentication, or generate a unique one if not provided
-    const authEmail = email || `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}@tradepro.local`;
-    
+  signUp: async (email: string, password: string, fullName: string, contactNumber: string, username: string) => {
     try {
-      // First, sign up the user with Supabase Auth
+      // Check if username already exists
+      const { data: usernameExists, error: usernameError } = await supabase
+        .rpc('check_username_exists', { check_username: username });
+      
+      if (usernameError) {
+        return { data: null, error: { message: 'Error checking username availability' } };
+      }
+      
+      if (usernameExists) {
+        return { data: null, error: { message: 'Username already exists. Please choose a different username.' } };
+      }
+
+      // Check if contact number already exists
+      const { data: contactExists, error: contactError } = await supabase
+        .rpc('check_contact_exists', { check_contact: contactNumber });
+      
+      if (contactError) {
+        return { data: null, error: { message: 'Error checking contact number availability' } };
+      }
+      
+      if (contactExists) {
+        return { data: null, error: { message: 'Contact number already registered. Please use a different contact number or sign in.' } };
+      }
+
+      // Check if email already exists (if provided)
+      if (email) {
+        const { data: emailExists, error: emailError } = await supabase
+          .rpc('check_email_exists', { check_email: email });
+        
+        if (emailError) {
+          return { data: null, error: { message: 'Error checking email availability' } };
+        }
+        
+        if (emailExists) {
+          return { data: null, error: { message: 'Email already registered. Please use a different email or sign in.' } };
+        }
+      }
+
+      // Generate a unique auth email for Supabase (since email is optional for users)
+      const authEmail = email || `${username}_${Date.now()}@tradepro.internal`;
+      
+      // Sign up the user with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: authEmail,
         password,
         options: {
           emailRedirectTo: undefined, // Disable email confirmation
           data: {
+            username,
             full_name: fullName,
             contact_number: contactNumber,
-            actual_email: email, // Store actual email in metadata if provided
+            email: email || null, // Store actual email (can be null)
           },
         },
       });
@@ -75,67 +127,56 @@ export const authHelpers = {
         return { data: null, error: authError };
       }
 
-      // If user was created successfully, ensure profile is created
-      if (authData.user) {
-        // Create default settings
-        const { error: settingsError } = await supabase
-          .from('user_settings')
-          .upsert({
-            user_id: authData.user.id,
-          });
-
-        if (settingsError) {
-          console.error('Settings creation error:', settingsError);
-          return { data: null, error: settingsError };
-        }
-      }
-
       return { data: authData, error: null };
     } catch (error) {
       console.error('Signup process error:', error);
-      return { data: null, error };
+      return { data: null, error: { message: 'Registration failed. Please try again.' } };
     }
   },
 
-  signIn: async (contactNumber: string, password: string) => {
+  signIn: async (loginIdentifier: string, password: string) => {
     try {
-      // First, try to find the user by contact number
-      const { data: profiles, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('contact_number', contactNumber)
-        .limit(1);
-
-      if (profileError || !profiles || profiles.length === 0) {
+      // Find user by username, email, or contact number
+      const { data: userLookup, error: lookupError } = await supabase
+        .rpc('find_user_for_login', { login_identifier: loginIdentifier });
+      
+      if (lookupError) {
+        console.error('User lookup error:', lookupError);
         return { 
           data: null, 
-          error: { message: 'No account found with this contact number. Please check your contact number or register first.' }
+          error: { message: 'Error during sign in. Please try again.' }
         };
       }
 
-      // Get the auth user to find their email
-      const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(profiles[0].id);
-      
-      if (authError || !authUser.user) {
+      if (!userLookup || userLookup.length === 0) {
         return { 
           data: null, 
-          error: { message: 'Account authentication error. Please try again.' }
+          error: { message: 'No account found with this username, email, or contact number.' }
         };
       }
+
+      const authEmail = userLookup[0].auth_email;
       
+      // Sign in with the auth email and password
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: authUser.user.email!,
+        email: authEmail,
         password,
       });
 
       if (error) {
+        if (error.message.includes('Invalid login credentials')) {
+          return { 
+            data: null, 
+            error: { message: 'Invalid password. Please check your password and try again.' }
+          };
+        }
         return { 
           data: null, 
-          error: { message: 'Invalid contact number or password. Please check your credentials.' }
+          error: { message: error.message || 'Sign in failed. Please try again.' }
         };
       }
 
-      return { data, error };
+      return { data, error: null };
     } catch (error) {
       console.error('Sign in error:', error);
       return { 
@@ -163,6 +204,15 @@ export const authHelpers = {
     return { data, error };
   },
 
+  getUserAccount: async (userId: string): Promise<{ data: UserAccount | null; error: any }> => {
+    const { data, error } = await supabase
+      .from('user_accounts')
+      .select('*')
+      .eq('auth_user_id', userId)
+      .single();
+    return { data, error };
+  },
+
   updateProfile: async (userId: string, updates: Partial<UserProfile>) => {
     const { data, error } = await supabase
       .from('user_profiles')
@@ -173,25 +223,14 @@ export const authHelpers = {
     return { data, error };
   },
 
-  // Debug function to check user data
-  debugUserData: async (contactNumber: string) => {
-    console.log('=== DEBUG USER DATA ===');
-    
-    // Check user_profiles table
-    const { data: profiles, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('contact_number', contactNumber);
-    
-    console.log('Profiles found:', profiles);
-    console.log('Profile error:', profileError);
-    
-    // Check auth.users table (this requires service role, so it might not work)
-    const { data: { users }, error: usersError } = await supabase.auth.admin.listUsers();
-    console.log('Auth users:', users);
-    console.log('Users error:', usersError);
-    
-    return { profiles, profileError, users, usersError };
+  updateAccount: async (userId: string, updates: Partial<UserAccount>) => {
+    const { data, error } = await supabase
+      .from('user_accounts')
+      .update(updates)
+      .eq('auth_user_id', userId)
+      .select()
+      .single();
+    return { data, error };
   },
 };
 

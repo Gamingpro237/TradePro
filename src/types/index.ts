@@ -2,6 +2,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  username?: string;
   full_name?: string;
   contact_number?: string;
   avatar_url?: string;
@@ -14,6 +15,7 @@ export interface User {
 export interface AuthUser {
   id: string;
   email: string;
+  username: string;
   full_name: string;
   contact_number: string;
   avatar_url?: string;
@@ -27,6 +29,7 @@ export interface RegisterData {
   confirmPassword: string;
   fullName: string;
   contactNumber: string;
+  username: string;
   agreeToTerms: boolean;
 }
 

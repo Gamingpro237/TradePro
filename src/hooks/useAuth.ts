@@ -14,7 +14,7 @@ export const useAuth = () => {
     const getInitialSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        await loadUserData(session.user.id, session.user.email || '');
+        await loadUserData(session.user.id);
       }
       setLoading(false);
     };
@@ -25,7 +25,7 @@ export const useAuth = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session?.user && event !== 'SIGNED_UP') {
-          await loadUserData(session.user.id, session.user.email || '');
+          await loadUserData(session.user.id);
         } else {
           setUser(null);
           setAuthUser(null);
@@ -38,35 +38,43 @@ export const useAuth = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadUserData = async (userId: string, email: string) => {
+  const loadUserData = async (userId: string) => {
     try {
-      const { data: profile, error } = await authHelpers.getProfile(userId);
+      // Load user profile
+      const { data: profile, error: profileError } = await authHelpers.getProfile(userId);
       
-      if (error) {
-        console.error('Error loading profile:', error);
+      if (profileError) {
+        console.error('Error loading profile:', profileError);
         return;
       }
 
-      if (profile) {
-        // Use the actual email from profile (can be null for contact-only users)
-        const userEmail = profile.email || '';
-        
+      // Load user account
+      const { data: account, error: accountError } = await authHelpers.getUserAccount(userId);
+      
+      if (accountError) {
+        console.error('Error loading account:', accountError);
+        return;
+      }
+
+      if (profile && account) {
         const authUserData: AuthUser = {
           id: profile.id,
-          email: userEmail,
-          full_name: profile.full_name || '',
-          contact_number: profile.contact_number || '',
+          email: profile.email || account.email || '',
+          username: account.username,
+          full_name: account.full_name,
+          contact_number: account.contact_number,
           avatar_url: profile.avatar_url || undefined,
-          created_at: profile.created_at,
-          updated_at: profile.updated_at,
+          created_at: account.created_at,
+          updated_at: account.updated_at,
         };
 
         const userData: User = {
           id: profile.id,
-          name: profile.full_name || 'User',
-          email: userEmail,
-          full_name: profile.full_name || undefined,
-          contact_number: profile.contact_number || undefined,
+          name: account.full_name || account.username,
+          email: profile.email || account.email || '',
+          username: account.username,
+          full_name: account.full_name,
+          contact_number: account.contact_number,
           avatar_url: profile.avatar_url || undefined,
           accountValue: 125480.75, // Mock data - replace with real data
           availableBalance: 15420.50,
@@ -100,7 +108,7 @@ export const useAuth = () => {
     const { data, error } = await authHelpers.updateProfile(authUser.id, updates);
     
     if (!error && data) {
-      await loadUserData(authUser.id, authUser.email);
+      await loadUserData(authUser.id);
     }
     
     return { data, error };

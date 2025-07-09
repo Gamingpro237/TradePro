@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Lock, Mail, User, Phone, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, User, Phone, CheckCircle, AtSign } from 'lucide-react';
 import { authHelpers } from '../../lib/supabase';
 import { RegisterData } from '../../types';
 
@@ -15,6 +15,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
     confirmPassword: '',
     fullName: '',
     contactNumber: '',
+    username: '',
     agreeToTerms: false,
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -51,6 +52,14 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
       newErrors.contactNumber = 'Please enter a valid contact number';
     }
 
+    if (!formData.username.trim()) {
+      newErrors.username = 'Username is required';
+    } else if (formData.username.length < 3) {
+      newErrors.username = 'Username must be at least 3 characters';
+    } else if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
+      newErrors.username = 'Username can only contain letters, numbers, and underscores';
+    }
+
     if (!formData.agreeToTerms) {
       newErrors.agreeToTerms = 'You must agree to the terms of service';
     }
@@ -74,14 +83,17 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
         formData.email, // Can be empty string
         formData.password,
         formData.fullName,
-        formData.contactNumber
+        formData.contactNumber,
+        formData.username
       );
 
       if (error) {
-        if (error.message && error.message.includes('already registered')) {
-          setErrors({ contactNumber: 'This contact number is already registered. Please try signing in.' });
-        } else if (error.message && error.message.includes('User already registered')) {
-          setErrors({ contactNumber: 'This contact number is already registered. Please try signing in.' });
+        if (error.message && error.message.includes('Username already exists')) {
+          setErrors({ username: error.message });
+        } else if (error.message && error.message.includes('Contact number already registered')) {
+          setErrors({ contactNumber: error.message });
+        } else if (error.message && error.message.includes('Email already registered')) {
+          setErrors({ email: error.message });
         } else {
           setErrors({ contactNumber: error.message || 'Registration failed. Please try again.' });
         }
@@ -90,8 +102,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
 
       // Registration successful - redirect to login
       if (data.user) {
-        // Show success message and redirect to login
-        alert('Registration successful! You can now sign in with your contact number and password.');
+        alert('Registration successful! You can now sign in with your username, contact number, or email (if provided) and password.');
         onRegisterSuccess();
       }
     } catch (error) {
@@ -129,7 +140,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
             {/* Full Name */}
             <div>
               <label htmlFor="fullName" className="block text-sm font-medium text-gray-300 mb-2">
-                Full Name
+                Full Name *
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
@@ -149,6 +160,62 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
               {errors.fullName && (
                 <p className="mt-1 text-sm text-red-400">{errors.fullName}</p>
               )}
+            </div>
+
+            {/* Username */}
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-2">
+                Username *
+              </label>
+              <div className="relative">
+                <AtSign className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  required
+                  value={formData.username}
+                  onChange={(e) => handleInputChange('username', e.target.value)}
+                  className={`w-full pl-10 pr-4 py-3 bg-gray-800 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.username ? 'border-red-500' : 'border-gray-700'
+                  }`}
+                  placeholder="Choose a unique username"
+                />
+              </div>
+              {errors.username && (
+                <p className="mt-1 text-sm text-red-400">{errors.username}</p>
+              )}
+              <p className="mt-1 text-xs text-gray-400">
+                You can use this username to sign in later
+              </p>
+            </div>
+
+            {/* Contact Number */}
+            <div>
+              <label htmlFor="contactNumber" className="block text-sm font-medium text-gray-300 mb-2">
+                Contact Number *
+              </label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <input
+                  id="contactNumber"
+                  name="contactNumber"
+                  type="tel"
+                  required
+                  value={formData.contactNumber}
+                  onChange={(e) => handleInputChange('contactNumber', e.target.value)}
+                  className={`w-full pl-10 pr-4 py-3 bg-gray-800 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.contactNumber ? 'border-red-500' : 'border-gray-700'
+                  }`}
+                  placeholder="Enter your contact number"
+                />
+              </div>
+              {errors.contactNumber && (
+                <p className="mt-1 text-sm text-red-400">{errors.contactNumber}</p>
+              )}
+              <p className="mt-1 text-xs text-gray-400">
+                You can use this contact number to sign in later
+              </p>
             </div>
 
             {/* Email */}
@@ -174,39 +241,14 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
                 <p className="mt-1 text-sm text-red-400">{errors.email}</p>
               )}
               <p className="mt-1 text-xs text-gray-400">
-                Email is optional. You will sign in using only your contact number and password.
+                If provided, you can also use your email to sign in
               </p>
-            </div>
-
-            {/* Contact Number */}
-            <div>
-              <label htmlFor="contactNumber" className="block text-sm font-medium text-gray-300 mb-2">
-                Contact Number
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                <input
-                  id="contactNumber"
-                  name="contactNumber"
-                  type="tel"
-                  required
-                  value={formData.contactNumber}
-                  onChange={(e) => handleInputChange('contactNumber', e.target.value)}
-                  className={`w-full pl-10 pr-4 py-3 bg-gray-800 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.contactNumber ? 'border-red-500' : 'border-gray-700'
-                  }`}
-                  placeholder="Enter your contact number"
-                />
-              </div>
-              {errors.contactNumber && (
-                <p className="mt-1 text-sm text-red-400">{errors.contactNumber}</p>
-              )}
             </div>
 
             {/* Password */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                Password
+                Password *
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
@@ -238,7 +280,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onRegister
             {/* Confirm Password */}
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
-                Confirm Password
+                Confirm Password *
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
